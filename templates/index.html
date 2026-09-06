@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentimentAI - AI Sentiment Analytics</title>
+    <meta name="description" content="Analyze social media, customer feedback, and product reviews using AI-powered NLP sentiment analysis.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Chart.js for clean client-side probability visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+    <!-- APPLICATION HEADER -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand-block">
+                <div class="brand-logo-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1 class="brand-title">SentimentAI</h1>
+                    <span class="brand-subtitle">AI Sentiment Analytics</span>
+                </div>
+            </div>
+
+            <div class="system-status-pills">
+                <!-- AI Engine Status -->
+                <div id="modelStatusPill" class="status-pill {% if model_status.transformer_active %}status-active{% else %}status-fallback{% endif %}" title="{{ model_status.model_name }}">
+                    <span class="status-dot"></span>
+                    <span class="status-text" id="modelStatusText">{{ model_status.status_label }}</span>
+                </div>
+                <!-- Database Status -->
+                <div id="dbStatusPill" class="status-pill {% if db_status.connected %}status-active{% else %}status-memory{% endif %}" title="{{ db_status.status_label }}">
+                    <span class="status-dot"></span>
+                    <span class="status-text" id="dbStatusText">{{ db_status.status_label }}</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="main-layout">
+        <div class="content-wrapper">
+
+            <!-- HERO & INPUT SECTION -->
+            <section class="hero-section">
+                <div class="hero-header">
+                    <h2 class="hero-title">Understand what your customers are saying.</h2>
+                    <p class="hero-subtitle">Analyze reviews, feedback, and social content using AI-powered sentiment analysis.</p>
+                </div>
+
+                <div class="analyzer-card">
+                    <form id="sentimentForm" class="analyzer-form">
+                        <div class="textarea-wrapper">
+                            <textarea
+                                id="textInput"
+                                class="text-input"
+                                rows="5"
+                                maxlength="{{ max_length }}"
+                                placeholder="Paste a review, customer feedback, or social media post..."
+                                required
+                            ></textarea>
+                            <div class="textarea-footer">
+                                <span class="validation-msg" id="validationMsg"></span>
+                                <span class="char-counter" id="charCounter">0 / {{ max_length }}</span>
+                            </div>
+                        </div>
+
+                        <!-- QUICK EXAMPLES BAR -->
+                        <div class="quick-examples">
+                            <span class="examples-label">Quick examples:</span>
+                            <div class="examples-buttons">
+                                <button type="button" class="example-btn" data-text="I absolutely love this product. The quality is amazing and delivery was very fast.">
+                                    <span class="example-dot dot-pos"></span> Positive
+                                </button>
+                                <button type="button" class="example-btn" data-text="The product arrived on time. The quality is acceptable and matches the description.">
+                                    <span class="example-dot dot-neu"></span> Neutral
+                                </button>
+                                <button type="button" class="example-btn" data-text="Very disappointed. The product stopped working after two days and support was unhelpful.">
+                                    <span class="example-dot dot-neg"></span> Negative
+                                </button>
+                                <button type="button" class="example-btn" data-text="The design is sleek and features are great, but the battery life is quite disappointing.">
+                                    <span class="example-dot dot-mix"></span> Mixed
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" id="analyzeBtn" class="btn-primary">
+                                <span class="btn-spinner" id="btnSpinner"></span>
+                                <span class="btn-label" id="btnLabel">Analyze Sentiment</span>
+                            </button>
+                            <button type="button" id="clearInputBtn" class="btn-secondary">Clear</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- RESULTS SECTION (HIDDEN INITIALLY) -->
+            <section id="resultsSection" class="results-section hidden">
+                <div class="section-title-row">
+                    <h3 class="section-title">Analysis Result</h3>
+                    <div class="result-meta-tags">
+                        <span id="engineBadge" class="meta-tag">AI Model: Transformer</span>
+                        <span id="latencyBadge" class="meta-tag">Latency: 0 ms</span>
+                    </div>
+                </div>
+
+                <div class="results-grid">
+                    <!-- SENTIMENT SUMMARY CARD -->
+                    <div class="result-card primary-result-card">
+                        <div class="card-header-sub">Predicted Sentiment</div>
+                        <div class="sentiment-badge-row">
+                            <div id="sentimentBadge" class="sentiment-badge badge-positive">
+                                <span class="badge-icon" id="sentimentIcon">✓</span>
+                                <span id="sentimentValue">Positive</span>
+                            </div>
+                            <div class="confidence-box">
+                                <div class="confidence-label">Confidence</div>
+                                <div class="confidence-value" id="confidenceValue">96.8%</div>
+                            </div>
+                        </div>
+
+                        <!-- PROBABILITY BARS -->
+                        <div class="scores-distribution">
+                            <div class="score-row">
+                                <div class="score-meta">
+                                    <span class="score-name">Positive</span>
+                                    <span class="score-num" id="posPercent">0%</span>
+                                </div>
+                                <div class="score-track">
+                                    <div class="score-bar bar-pos" id="posBar" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="score-row">
+                                <div class="score-meta">
+                                    <span class="score-name">Neutral</span>
+                                    <span class="score-num" id="neuPercent">0%</span>
+                                </div>
+                                <div class="score-track">
+                                    <div class="score-bar bar-neu" id="neuBar" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="score-row">
+                                <div class="score-meta">
+                                    <span class="score-name">Negative</span>
+                                    <span class="score-num" id="negPercent">0%</span>
+                                </div>
+                                <div class="score-track">
+                                    <div class="score-bar bar-neg" id="negBar" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- HUMAN-READABLE INSIGHT -->
+                        <div class="insight-box">
+                            <div class="insight-header">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                                <span>Analytical Interpretation</span>
+                            </div>
+                            <p class="insight-text" id="insightText">
+                                Loading analysis interpretation...
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- VISUALIZATION CARD (CHART.JS) -->
+                    <div class="result-card chart-result-card">
+                        <div class="card-header-sub">Probability Distribution</div>
+                        <div class="chart-wrapper">
+                            <canvas id="sentimentChart"></canvas>
+                        </div>
+                        <div class="chart-legend-custom">
+                            <span class="legend-item"><span class="legend-box box-pos"></span> Positive</span>
+                            <span class="legend-item"><span class="legend-box box-neu"></span> Neutral</span>
+                            <span class="legend-item"><span class="legend-box box-neg"></span> Negative</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- OVERALL DASHBOARD STATISTICS -->
+            <section class="stats-section">
+                <div class="section-title-row">
+                    <h3 class="section-title">Aggregate Analytics</h3>
+                    <span class="section-caption">Computed across stored analysis history</span>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">Total Analyses</span>
+                        <span class="stat-number" id="statTotal">{{ initial_stats.total }}</span>
+                    </div>
+                    <div class="stat-card stat-pos-card">
+                        <span class="stat-label">Positive Feedback</span>
+                        <div class="stat-value-group">
+                            <span class="stat-number text-pos" id="statPos">{{ initial_stats.positive }}</span>
+                            <span class="stat-sub" id="statPosPct">({{ initial_stats.positive_percent }}%)</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-neu-card">
+                        <span class="stat-label">Neutral Content</span>
+                        <div class="stat-value-group">
+                            <span class="stat-number text-neu" id="statNeu">{{ initial_stats.neutral }}</span>
+                            <span class="stat-sub" id="statNeuPct">({{ initial_stats.neutral_percent }}%)</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-neg-card">
+                        <span class="stat-label">Negative Reviews</span>
+                        <div class="stat-value-group">
+                            <span class="stat-number text-neg" id="statNeg">{{ initial_stats.negative }}</span>
+                            <span class="stat-sub" id="statNegPct">({{ initial_stats.negative_percent }}%)</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ANALYSIS HISTORY SECTION -->
+            <section class="history-section">
+                <div class="history-header">
+                    <div>
+                        <h3 class="section-title">Analysis History</h3>
+                        <span class="section-caption" id="historySourceNote">
+                            {% if db_status.connected %}Live records stored in MongoDB{% else %}In-memory session records{% endif %}
+                        </span>
+                    </div>
+                    <button type="button" id="clearHistoryBtn" class="btn-clear">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Clear History
+                    </button>
+                </div>
+
+                <div class="history-card">
+                    <div class="history-list" id="historyList">
+                        <!-- Populated by JavaScript -->
+                        <div class="history-empty" id="historyEmpty">
+                            <p>No analysis history yet. Enter text above or click an example to begin.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+        <div class="footer-container">
+            <p class="footer-text">SentimentAI &bull; Production Sentiment Intelligence Platform &bull; Project 7 Internship Portfolio</p>
+        </div>
+    </footer>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
