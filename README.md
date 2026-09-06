@@ -168,7 +168,7 @@ MODEL_NAME=cardiffnlp/twitter-roberta-base-sentiment-latest
 # Application Server
 PORT=5000
 FLASK_DEBUG=False
-SECRET_KEY=sentiment-ai-secure-key-2026
+SECRET_KEY=your-secure-random-secret
 ```
 
 ---
@@ -205,7 +205,7 @@ pip install -r requirements.txt
 3. Under **Network Access**, whitelist your IP or allow access from anywhere (`0.0.0.0/0`).
 4. Copy the connection string and paste it into `.env`:
    ```env
-   MONGODB_URI=mongodb+srv://user:password@cluster0.mongodb.net/?retryWrites=true&w=majority
+   MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/?retryWrites=true&w=majority
    ```
 
 ### Option B: Local MongoDB
@@ -403,16 +403,6 @@ The test suite validates:
 - Label boundary constraints and score normalization
 - Database persistence and graceful MongoDB offline recovery
 - History retrieval, statistics calculation, and deletion
-
----
-
-## Screenshots
-
-*(Add application screenshots here for GitHub / portfolio display)*
-
-- **Dashboard Hero & Input Form**: `[Placeholder: /screenshots/dashboard_hero.png]`
-- **Real-time Probability Visualization**: `[Placeholder: /screenshots/results_chart.png]`
-- **Historical Analysis & Aggregates**: `[Placeholder: /screenshots/history_stats.png]`
 
 ---
 

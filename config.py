@@ -14,7 +14,7 @@ class Config:
     """Central configuration class."""
     PORT = int(os.getenv("PORT", 5000))
     DEBUG = os.getenv("FLASK_DEBUG", "False").lower() in ("true", "1", "t")
-    SECRET_KEY = os.getenv("SECRET_KEY", "sentiment-ai-secret-key-prod-2026")
+    SECRET_KEY = os.getenv("SECRET_KEY") or os.urandom(24).hex()
 
     # NLP Model Configuration
     # Configurable through MODEL_NAME environment variable
